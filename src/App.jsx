@@ -197,17 +197,28 @@ const FeedbackCard = ({ title, icon: Icon, data }) => {
     return { text: 'Crítico', color: 'text-rose-400' };
   };
 
-  const copyToClipboard = () => {
+  const copyToClipboard = async () => {
     if (!data.suggestion) return;
-    document.execCommand('copy');
-    navigator.clipboard.writeText(data.suggestion).catch(() => {
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(data.suggestion);
+      } else {
+        throw new Error('Clipboard API indisponível');
+      }
+    } catch {
       const el = document.createElement('textarea');
       el.value = data.suggestion;
+      el.setAttribute('readonly', '');
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
       document.body.appendChild(el);
       el.select();
       document.execCommand('copy');
       document.body.removeChild(el);
-    });
+    }
+
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -365,7 +376,7 @@ export default function App() {
             <Bot className="text-white w-8 h-8" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-indigo-300 tracking-tight">
-            LinkedIn <span className="text-indigo-500">Magnet</span> AI
+            LinkedIn <span className="text-indigo-500">Magnet</span> AI - By Aurora Business
           </h1>
           <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
             A auditoria inteligente do seu perfil. Importe seu PDF e deixe nossa IA reescrever sua trajetória com técnicas avançadas de atração de recrutadores.
