@@ -466,16 +466,23 @@ const analyzeWithAI = async (profileData, options) => {
 const ScoreRing = ({ score }) => {
   const gradientId = useId();
 
+  const clampedScore = Math.max(0, Math.min(100, Number(score) || 0));
+
   let color = 'text-rose-500';
   if (score >= 70) color = 'text-amber-400';
   if (score >= 90) color = 'text-emerald-400';
 
-  return (
-    <div className="relative flex items-center justify-center w-44 h-44 mx-auto">
-      <div className="absolute inset-0 rounded-full bg-slate-950/40 border border-slate-700/50 shadow-inner"></div>
-      <div className="absolute inset-2 rounded-full bg-indigo-500/10 blur-xl opacity-70"></div>
+  let glow = 'bg-rose-500/10';
+  if (clampedScore >= 70) glow = 'bg-amber-500/10';
+  if (clampedScore >= 90) glow = 'bg-emerald-500/10';
 
-      <svg className="relative z-10 w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+  return (
+    <div className="relative flex items-center justify-center w-44 h-44 mx-auto rounded-full overflow-hidden">
+      <div className="absolute inset-0 rounded-full bg-slate-950/50 border border-slate-700/50 shadow-inner"></div>
+      <div className={`absolute inset-2 rounded-full ${glow} blur-xl opacity-80`}></div>
+      <div className="absolute inset-6 rounded-full bg-slate-950/60"></div>
+
+      <svg className={`relative z-10 w-full h-full transform -rotate-90 ${color}`} viewBox="0 0 36 36">
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="currentColor" stopOpacity="0.75" />
@@ -491,8 +498,8 @@ const ScoreRing = ({ score }) => {
           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
         />
         <path
-          className={`${color} transition-all duration-1000 ease-out drop-shadow-[0_0_10px_currentColor]`}
-          strokeDasharray={`${score}, 100`}
+          className="transition-all duration-1000 ease-out drop-shadow-[0_0_14px_currentColor]"
+          strokeDasharray={`${clampedScore}, 100`}
           strokeWidth="3.5"
           strokeLinecap="round"
           stroke={`url(#${gradientId})`}
@@ -501,7 +508,7 @@ const ScoreRing = ({ score }) => {
         />
       </svg>
       <div className="absolute z-20 flex flex-col items-center justify-center">
-        <span className="text-5xl font-extrabold text-white tracking-tighter leading-none">{Math.round(score)}</span>
+        <span className="text-5xl font-extrabold text-white tracking-tighter leading-none">{Math.round(clampedScore)}</span>
         <span className="text-[11px] text-slate-400 font-bold tracking-[0.2em] uppercase mt-1">SCORE</span>
       </div>
     </div>
