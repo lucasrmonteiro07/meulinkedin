@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { 
   Briefcase, User, FileText, Star, AlertTriangle, 
   CheckCircle, ChevronRight, Zap, Target, Award,
@@ -329,6 +329,8 @@ const analyzeWithAI = async (profileData, options) => {
       - Comece cada bullet com um verbo forte no passado (Ex: Otimizei, Arquitetei, Liderei, Automatizei, Reduzi, Implementei).
       - Se faltarem números/métricas, crie placeholders claros entre colchetes (ex.: [redução de 18%], [R$ X], [tempo em minutos]).
       - Formatação: organize por cargo (ex.: "Cargo — Empresa (Período)") e bullets em linhas separadas com "- ".
+      - Obrigatório: inclua pelo menos 1 métrica (número real ou placeholder) em cada cargo.
+      - Se o texto vier "embolsado" (sem separação clara de cargos), você deve inferir blocos e ainda assim reescrever tudo.
     - SKILLS: Filtre e organize as top 15 Hard Skills mais relevantes para sistemas ATS. Remova soft skills genéricas dessa seção.
 
     DIAGNÓSTICO PROFISSIONAL (Obrigatório):
@@ -451,7 +453,7 @@ const analyzeWithAI = async (profileData, options) => {
       const resultText = data.choices[0].message.content;
       const parsed = parseModelJsonObject(resultText);
       return normalizeAnalysis(parsed);
-    } catch (error) {
+    } catch {
       if (i === 4) throw new Error(isEn ? I18N.en.groqFail : I18N.pt.groqFail);
       await new Promise(r => setTimeout(r, delays[i]));
     }
@@ -462,34 +464,45 @@ const analyzeWithAI = async (profileData, options) => {
 // --- Componentes UI ---
 
 const ScoreRing = ({ score }) => {
+  const gradientId = useId();
+
   let color = 'text-rose-500';
   if (score >= 70) color = 'text-amber-400';
   if (score >= 90) color = 'text-emerald-400';
 
   return (
-    <div className="relative flex items-center justify-center w-40 h-40 mx-auto">
-      <svg className="w-full h-full transform -rotate-90 drop-shadow-2xl" viewBox="0 0 36 36">
+    <div className="relative flex items-center justify-center w-44 h-44 mx-auto">
+      <div className="absolute inset-0 rounded-full bg-slate-950/40 border border-slate-700/50 shadow-inner"></div>
+      <div className="absolute inset-2 rounded-full bg-indigo-500/10 blur-xl opacity-70"></div>
+
+      <svg className="relative z-10 w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.75" />
+            <stop offset="50%" stopColor="currentColor" stopOpacity="1" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.75" />
+          </linearGradient>
+        </defs>
         <path
           className="text-slate-800"
-          strokeWidth="3"
+          strokeWidth="3.5"
           stroke="currentColor"
           fill="none"
           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
         />
         <path
-          className={`${color} transition-all duration-1000 ease-out`}
+          className={`${color} transition-all duration-1000 ease-out drop-shadow-[0_0_10px_currentColor]`}
           strokeDasharray={`${score}, 100`}
-          strokeWidth="3"
+          strokeWidth="3.5"
           strokeLinecap="round"
-          stroke="currentColor"
+          stroke={`url(#${gradientId})`}
           fill="none"
           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-          style={{ filter: 'drop-shadow(0 0 8px currentColor)' }}
         />
       </svg>
-      <div className="absolute flex flex-col items-center justify-center">
-        <span className="text-4xl font-extrabold text-white tracking-tighter">{Math.round(score)}</span>
-        <span className="text-xs text-slate-400 font-medium tracking-widest uppercase mt-1">Score</span>
+      <div className="absolute z-20 flex flex-col items-center justify-center">
+        <span className="text-5xl font-extrabold text-white tracking-tighter leading-none">{Math.round(score)}</span>
+        <span className="text-[11px] text-slate-400 font-bold tracking-[0.2em] uppercase mt-1">SCORE</span>
       </div>
     </div>
   );
@@ -526,7 +539,7 @@ const FeedbackCard = ({ title, icon: Icon, data, t }) => {
       <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
         <div className="flex items-center gap-3">
           <div className={`p-2.5 rounded-xl bg-slate-900 shadow-inner ${status.color}`}>
-            <Icon size={20} />
+            {React.createElement(Icon, { size: 20 })}
           </div>
           <h3 className="font-bold text-white text-lg tracking-wide">{title}</h3>
         </div>
@@ -1287,6 +1300,11 @@ export default function App() {
             )}
           </div>
         </div>
+
+        <footer className="mt-10 border-t border-slate-700/30 pt-6 text-center text-xs text-slate-500">
+          <div>Desenvolvido por Aurora Business Intelligence - 2026</div>
+          <div>Todos os direitos reservados</div>
+        </footer>
       </div>
     </div>
   );
