@@ -508,7 +508,149 @@ const ScoreRing = ({ score }) => {
   );
 };
 
-const FeedbackCard = ({ title, icon: Icon, data, t }) => {
+const parseExperienceBlocks = (text) => {
+  if (!text) return [];
+
+  const lines = String(text)
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((l) => l.trimEnd());
+
+  const blocks = [];
+  let current = null;
+
+  const pushCurrent = () => {
+    if (!current) return;
+    const hasContent =
+      (current.heading && current.heading.trim()) ||
+      current.bullets.length > 0 ||
+      current.paragraphs.length > 0;
+    if (hasContent) blocks.push(current);
+    current = null;
+  };
+
+  const isHeadingLine = (line) => {
+    const s = line.trim();
+    if (!s) return false;
+    if (/^[-•*]\s+/.test(s)) return false;
+    if (s.length > 140) return false;
+    if (!s.includes('(') || !s.includes(')')) return false;
+    return /\s[—-]\s/.test(s) || s.includes('—');
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (isHeadingLine(line)) {
+      pushCurrent();
+      current = { heading: line, bullets: [], paragraphs: [] };
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-•*]\s+(.*)$/);
+    if (bulletMatch) {
+      if (!current) current = { heading: '', bullets: [], paragraphs: [] };
+      const bulletText = (bulletMatch[1] || '').trim();
+      if (bulletText) current.bullets.push(bulletText);
+      continue;
+    }
+
+    if (!current) current = { heading: '', bullets: [], paragraphs: [] };
+    current.paragraphs.push(line);
+  }
+
+  pushCurrent();
+  return blocks;
+};
+
+const ExperienceSuggestionView = ({ text }) => {
+  const blocks = parseExperienceBlocks(text);
+
+  if (blocks.length === 0) {
+    return <div className="whitespace-pre-wrap leading-relaxed font-mono text-[13px]">{text}</div>;
+  }
+
+  const hasMultipleBlocks = blocks.filter((b) => b.heading).length >= 1;
+  if (!hasMultipleBlocks) {
+    return <div className="whitespace-pre-wrap leading-relaxed font-mono text-[13px]">{text}</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {blocks.map((block, idx) => (
+        <div key={`${block.heading || 'block'}-${idx}`} className="rounded-xl border border-slate-700/40 bg-slate-950/30 p-4">
+          {block.heading && (
+            <div className="text-sm font-bold text-slate-100 tracking-wide">
+              {block.heading}
+            </div>
+          )}
+
+          {block.paragraphs.length > 0 && (
+            <div className="mt-2 text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+              {block.paragraphs.join('\n')}
+            </div>
+          )}
+
+          {block.bullets.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {block.bullets.map((b, bIdx) => (
+                <div key={`${idx}-b-${bIdx}`} className="flex gap-3 text-sm text-slate-200 leading-relaxed">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-400/80 flex-shrink-0" />
+                  <div className="whitespace-pre-wrap">{b}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ExperiencePreviewView = ({ text }) => {
+  const blocks = parseExperienceBlocks(text);
+
+  if (blocks.length === 0) {
+    return <div className="whitespace-pre-wrap leading-relaxed">{text}</div>;
+  }
+
+  const hasHeadings = blocks.some((b) => b.heading);
+  if (!hasHeadings) {
+    return <div className="whitespace-pre-wrap leading-relaxed">{text}</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {blocks.map((block, idx) => (
+        <div key={`${block.heading || 'block'}-${idx}`} className="space-y-2">
+          {block.heading && (
+            <div className="text-slate-100 font-semibold">{block.heading}</div>
+          )}
+
+          {block.paragraphs.length > 0 && (
+            <div className="text-slate-200 whitespace-pre-wrap leading-relaxed">
+              {block.paragraphs.join('\n')}
+            </div>
+          )}
+
+          {block.bullets.length > 0 && (
+            <div className="space-y-2">
+              {block.bullets.map((b, bIdx) => (
+                <div key={`${idx}-pb-${bIdx}`} className="flex gap-3 text-slate-200 leading-relaxed">
+                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400/80 flex-shrink-0" />
+                  <div className="whitespace-pre-wrap">{b}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const FeedbackCard = ({ title, icon: Icon, data, t, sectionKey }) => {
   const [copied, setCopied] = useState(false);
 
   const getStatusColor = (score) => {
@@ -575,8 +717,12 @@ const FeedbackCard = ({ title, icon: Icon, data, t }) => {
               {copied ? t('copied') : t('copyText')}
             </button>
           </div>
-          <div className="bg-[#0B1120] p-4 rounded-xl text-sm text-slate-200 border border-slate-700/50 whitespace-pre-wrap leading-relaxed font-mono text-[13px] shadow-inner">
-            {data.suggestion}
+          <div className="bg-[#0B1120] p-4 rounded-xl text-sm text-slate-200 border border-slate-700/50 shadow-inner">
+            {sectionKey === 'experience' ? (
+              <ExperienceSuggestionView text={data.suggestion} />
+            ) : (
+              <div className="whitespace-pre-wrap leading-relaxed font-mono text-[13px]">{data.suggestion}</div>
+            )}
           </div>
         </div>
       )}
@@ -1094,7 +1240,7 @@ export default function App() {
                   
                   <FeedbackCard title={t('optimizedHeadline')} icon={User} data={analysis.feedback.headline} t={t} />
                   <FeedbackCard title={t('salesLetter')} icon={Activity} data={analysis.feedback.about} t={t} />
-                  <FeedbackCard title={t('impactMetrics')} icon={Briefcase} data={analysis.feedback.experience} t={t} />
+                  <FeedbackCard title={t('impactMetrics')} icon={Briefcase} data={analysis.feedback.experience} t={t} sectionKey="experience" />
                   <FeedbackCard title={t('techStack')} icon={Star} data={analysis.feedback.skills} t={t} />
 
                   {analysis.proReport && (
@@ -1286,7 +1432,9 @@ export default function App() {
 
                       <div>
                         <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Experience</div>
-                        <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{finalExperience || '-'}</div>
+                        <div className="text-sm text-slate-200 leading-relaxed">
+                          {finalExperience ? <ExperiencePreviewView text={finalExperience} /> : '-'}
+                        </div>
                       </div>
 
                       <div>
