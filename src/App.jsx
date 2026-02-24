@@ -349,13 +349,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1120] text-slate-200 font-sans p-4 sm:p-8 selection:bg-indigo-500/30">
+    // ADICIONADO: w-full e !max-w-full para forçar o preenchimento de todo o ecrã
+    <div className="min-h-screen w-full !max-w-full bg-[#0B1120] text-slate-200 font-sans p-4 sm:p-8 lg:p-12 selection:bg-indigo-500/30 overflow-x-hidden">
       
       {/* Background Glows */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full pointer-events-none"></div>
 
-      <div className="max-w-6xl mx-auto relative z-10">
+      {/* ADICIONADO: max-w-[1600px] para ocupar até os monitores mais largos */}
+      <div className="w-full max-w-[1600px] mx-auto relative z-10">
         
         {/* Header */}
         <div className="text-center mb-12">
@@ -370,18 +372,19 @@ export default function App() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Layout da Grelha - Vai expandir perfeitamente lado a lado em ecrãs grandes */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-12">
           
           {/* Formulário de Input (Esquerda) */}
-          <div className="bg-slate-900/50 backdrop-blur-md rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden relative">
+          <div className="bg-slate-900/50 backdrop-blur-md rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden relative flex flex-col h-full">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-violet-500"></div>
             
-            <div className="p-6 bg-slate-800/30 border-b border-slate-700/50 flex flex-col xl:flex-row justify-between items-center gap-4">
+            <div className="p-6 bg-slate-800/30 border-b border-slate-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <FileText className="text-indigo-400" /> Perfil Atual
               </h2>
               
-              <div className="flex flex-wrap items-center justify-center gap-3 text-sm w-full xl:w-auto">
+              <div className="flex flex-wrap items-center justify-center gap-3 text-sm w-full sm:w-auto">
                  <button 
                    onClick={handleClearData} 
                    className="flex items-center gap-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-400/10 px-3 py-2 rounded-lg transition-colors text-xs font-semibold"
@@ -390,11 +393,11 @@ export default function App() {
                    <Trash2 size={14} /> Limpar
                  </button>
                  
-                 <div className="hidden xl:block w-px h-4 bg-slate-700"></div>
+                 <div className="hidden sm:block w-px h-4 bg-slate-700"></div>
 
-                 <label className={`flex items-center gap-2 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-indigo-500/20 font-semibold flex-1 xl:flex-none justify-center ${isParsingPDF ? 'opacity-70 pointer-events-none animate-pulse' : ''}`}>
+                 <label className={`flex items-center gap-2 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-indigo-500/20 font-semibold flex-1 sm:flex-none justify-center ${isParsingPDF ? 'opacity-70 pointer-events-none animate-pulse' : ''}`}>
                     {isParsingPDF ? <Zap size={16} /> : <UploadCloud size={16} />}
-                    {isParsingPDF ? 'Extraindo Dados...' : '1. Importar Currículo PDF'}
+                    {isParsingPDF ? 'Extraindo...' : '1. Importar PDF'}
                     <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} disabled={isParsingPDF} />
                  </label>
               </div>
@@ -407,7 +410,7 @@ export default function App() {
                 </button>
             </div>
 
-            <div className="p-6 pt-4 space-y-6">
+            <div className="p-6 pt-4 space-y-6 flex-1 flex flex-col">
               {/* Headline */}
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
@@ -434,12 +437,12 @@ export default function App() {
                   onChange={handleInputChange}
                   rows="4"
                   placeholder="Cole aqui o texto da seção Sobre do seu perfil..."
-                  className="w-full p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
+                  className="w-full min-h-[120px] p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
                 ></textarea>
               </div>
 
               {/* Experience */}
-              <div>
+              <div className="flex-1">
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
                   <Briefcase size={16} className="text-indigo-400"/> Experiências Profissionais
                 </label>
@@ -447,14 +450,14 @@ export default function App() {
                   name="experience"
                   value={formData.experience}
                   onChange={handleInputChange}
-                  rows="5"
+                  rows="6"
                   placeholder="Copie as descrições dos seus cargos atuais e anteriores..."
-                  className="w-full p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
+                  className="w-full h-full min-h-[160px] p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
                 ></textarea>
               </div>
 
               {/* Skills */}
-              <div>
+              <div className="pb-2">
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
                   <Star size={16} className="text-indigo-400"/> Competências Principais
                 </label>
@@ -477,7 +480,7 @@ export default function App() {
               <button
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || (!formData.headline && !formData.about && !formData.experience && !formData.skills)}
-                className="w-full relative group overflow-hidden py-4 px-6 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-lg shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-3 border border-slate-600 hover:border-indigo-400"
+                className="w-full relative group overflow-hidden py-4 px-6 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-lg shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-3 border border-slate-600 hover:border-indigo-400 mt-auto"
               >
                 {/* Efeito Hover Inteligente */}
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0"></div>
@@ -497,18 +500,18 @@ export default function App() {
           </div>
 
           {/* Painel de Resultados (Direita) */}
-          <div className="relative h-full">
+          <div className="relative h-full flex flex-col">
             {!analysis && !isAnalyzing ? (
-               <div className="h-full bg-slate-900/30 backdrop-blur-sm rounded-3xl border-2 border-dashed border-slate-700/50 flex flex-col items-center justify-center p-10 text-center text-slate-400">
+               <div className="flex-1 h-full min-h-[600px] bg-slate-900/30 backdrop-blur-sm rounded-3xl border-2 border-dashed border-slate-700/50 flex flex-col items-center justify-center p-10 text-center text-slate-400">
                   <div className="relative mb-6">
                     <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 rounded-full"></div>
                     <Bot size={64} className="text-slate-600 relative z-10" />
                   </div>
                   <h3 className="text-2xl font-bold mb-3 text-slate-300">A IA está pronta</h3>
-                  <p className="max-w-sm">Importe seu currículo em PDF e deixe nossa IA transformar seus textos em um verdadeiro ímã de oportunidades.</p>
+                  <p className="max-w-md">Importe seu currículo em PDF e deixe nossa IA transformar seus textos em um verdadeiro ímã de oportunidades.</p>
                </div>
             ) : isAnalyzing ? (
-               <div className="h-full bg-slate-900/50 backdrop-blur-md rounded-3xl border border-indigo-500/30 shadow-2xl flex flex-col items-center justify-center p-10 text-center">
+               <div className="flex-1 h-full min-h-[600px] bg-slate-900/50 backdrop-blur-md rounded-3xl border border-indigo-500/30 shadow-2xl flex flex-col items-center justify-center p-10 text-center">
                   <div className="relative">
                     <div className="w-24 h-24 border-t-4 border-b-4 border-indigo-500 rounded-full animate-spin"></div>
                     <div className="w-24 h-24 absolute inset-0 border-r-4 border-l-4 border-violet-500 rounded-full animate-[spin_2s_reverse_infinite]"></div>
@@ -518,7 +521,7 @@ export default function App() {
                   <p className="text-slate-400 animate-pulse">Analisando SEO e aplicando matriz de conversão nas descrições...</p>
                </div>
             ) : (
-              <div className="bg-slate-900/50 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-700/50 overflow-hidden flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="flex-1 bg-slate-900/50 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-700/50 overflow-hidden flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="p-8 bg-gradient-to-b from-indigo-900/20 to-slate-900/0 border-b border-slate-700/50 text-center">
                   <h2 className="text-sm font-bold uppercase tracking-widest text-indigo-400 mb-6 flex items-center justify-center gap-2">
                     <Target size={16}/> Score de Atratividade
@@ -532,7 +535,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+                <div className="p-6 flex-1 overflow-y-auto custom-scrollbar max-h-[800px]">
                   
                   <FeedbackCard title="Título Otimizado (SEO)" icon={User} data={analysis.feedback.headline} />
                   <FeedbackCard title="Carta de Vendas (Resumo)" icon={Activity} data={analysis.feedback.about} />
