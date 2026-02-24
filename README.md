@@ -1,5 +1,10 @@
 # LinkedIn Magnet AI — By Aurora Business
 
+![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![Deploy](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white)
+
 Uma aplicação web que faz **auditoria + reescrita do seu perfil do LinkedIn** com foco em **SEO/ATS**, usando IA para gerar um texto mais direto, mensurável e “pronto para recrutadores”.
 
 Você pode **importar seu PDF**, revisar os campos, escolher **idioma (PT-BR / EN)** e gerar sugestões otimizadas para:
@@ -8,6 +13,15 @@ Você pode **importar seu PDF**, revisar os campos, escolher **idioma (PT-BR / E
 - About
 - Experiência (reescrita completa de todos os cargos, não só o último)
 - Skills
+
+## Screenshots
+
+Coloque imagens em `public/screenshots/` e referencie aqui.
+
+Exemplos (substitua pelos seus arquivos):
+
+![Tela inicial](public/screenshots/IMG01.png)
+![Resultado/score](public/screenshots/IMG02.png)
 
 ## Principais funcionalidades
 
