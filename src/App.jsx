@@ -59,10 +59,10 @@ const parseLinkedInText = (text) => {
   return data;
 };
 
-// --- Integração com IA Real (Gemini API) ---
+// --- Integração com IA Real (Groq API) ---
 const analyzeWithAI = async (profileData) => {
   // Chave da API inserida diretamente para uso rápido
-  const apiKey = "AIzaSyDedKRHlcJTE7OZ9uTvYSLqbNyC4ex85eI"; 
+  const apiKey = "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"; 
 
   // Prompt do Sistema altamente assertivo e focado em alta performance
   const systemInstruction = `
@@ -76,83 +76,70 @@ const analyzeWithAI = async (profileData) => {
     - EXPERIÊNCIA: Você DEVE usar a Fórmula X-Y-Z do Google ("Realizei [X], medido por [Y], fazendo [Z]"). Inicie cada bullet point com um verbo de ação forte no passado (Ex: Otimizei, Arquitetei, Lideri). Invente placeholders [como este] se faltarem métricas, para o usuário preencher depois.
     - SKILLS: Filtre e organize as top 15 Hard Skills mais relevantes para sistemas ATS. Remova soft skills genéricas dessa seção.
 
-    Para CADA seção, forneça:
-    1. Uma nota local rigorosa (0-100).
-    2. Uma lista de itens de feedback ('success', 'warning', ou 'error').
-    3. Uma "suggestion": A reescrita COMPLETA, altamente persuasiva e formatada, pronta para copiar e colar.
+    MUITO IMPORTANTE: Você DEVE retornar APENAS um objeto JSON válido. NENHUM texto fora do JSON.
+    Siga ESTRITAMENTE esta estrutura de JSON para sua resposta:
+    {
+      "score": 85,
+      "feedback": {
+        "headline": {
+          "score": 90,
+          "items": [ { "type": "success"|"warning"|"error", "text": "Sua mensagem aqui" } ],
+          "suggestion": "Texto da reescrita aqui"
+        },
+        "about": {
+          "score": 80,
+          "items": [ { "type": "success"|"warning"|"error", "text": "Sua mensagem aqui" } ],
+          "suggestion": "Texto da reescrita aqui"
+        },
+        "experience": {
+          "score": 75,
+          "items": [ { "type": "success"|"warning"|"error", "text": "Sua mensagem aqui" } ],
+          "suggestion": "Texto da reescrita aqui"
+        },
+        "skills": {
+          "score": 100,
+          "items": [ { "type": "success"|"warning"|"error", "text": "Sua mensagem aqui" } ],
+          "suggestion": "Texto da reescrita aqui"
+        }
+      },
+      "goldenTip": "Uma dica de ouro impactante aqui"
+    }
   `;
 
   const prompt = `Analise este perfil com rigor:\n\nTítulo: ${profileData.headline}\n\nResumo: ${profileData.about}\n\nExperiência: ${profileData.experience}\n\nCompetências: ${profileData.skills}`;
 
-  const schema = {
-    type: "OBJECT",
-    properties: {
-      score: { type: "INTEGER" },
-      feedback: {
-        type: "OBJECT",
-        properties: {
-          headline: {
-            type: "OBJECT",
-            properties: {
-              score: { type: "INTEGER" },
-              items: { type: "ARRAY", items: { type: "OBJECT", properties: { type: { type: "STRING" }, text: { type: "STRING" } } } },
-              suggestion: { type: "STRING" }
-            }
-          },
-          about: {
-            type: "OBJECT",
-            properties: {
-              score: { type: "INTEGER" },
-              items: { type: "ARRAY", items: { type: "OBJECT", properties: { type: { type: "STRING" }, text: { type: "STRING" } } } },
-              suggestion: { type: "STRING" }
-            }
-          },
-          experience: {
-            type: "OBJECT",
-            properties: {
-              score: { type: "INTEGER" },
-              items: { type: "ARRAY", items: { type: "OBJECT", properties: { type: { type: "STRING" }, text: { type: "STRING" } } } },
-              suggestion: { type: "STRING" }
-            }
-          },
-          skills: {
-            type: "OBJECT",
-            properties: {
-              score: { type: "INTEGER" },
-              items: { type: "ARRAY", items: { type: "OBJECT", properties: { type: { type: "STRING" }, text: { type: "STRING" } } } },
-              suggestion: { type: "STRING" }
-            }
-          }
-        }
-      },
-      goldenTip: { type: "STRING" }
-    }
-  };
-
   const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    systemInstruction: { parts: [{ text: systemInstruction }] },
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: schema
-    }
+    model: "llama-3.3-70b-versatile", // Modelo gratuito e poderoso da Groq
+    messages: [
+      { role: "system", content: systemInstruction },
+      { role: "user", content: prompt }
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.3
   };
 
   const delays = [1000, 2000, 4000, 8000, 16000];
   for (let i = 0; i < 5; i++) {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error('Falha na API da IA');
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || 'Falha na API da Groq');
+      }
       
       const data = await response.json();
-      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const resultText = data.choices[0].message.content;
       return JSON.parse(resultText);
     } catch (error) {
-      if (i === 4) throw new Error("Não foi possível conectar à IA. Verifique sua chave da API ou tente novamente.");
+      if (i === 4) throw new Error("Não foi possível conectar à IA da Groq. Verifique sua chave da API ou tente novamente.");
       await new Promise(r => setTimeout(r, delays[i]));
     }
   }
