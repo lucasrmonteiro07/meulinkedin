@@ -1,9 +1,154 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { 
   Briefcase, User, FileText, Star, AlertTriangle, 
   CheckCircle, ChevronRight, Zap, Target, Award,
   Activity, UploadCloud, Sparkles, Copy, Bot, Trash2
 } from 'lucide-react';
+
+const I18N = {
+  pt: {
+    language: 'Idioma',
+    portuguese: 'Português (BR)',
+    english: 'English (US)',
+    tagline:
+      'A auditoria inteligente do seu perfil. Importe seu PDF e deixe nossa IA reescrever sua trajetória com técnicas avançadas de atração de recrutadores.',
+    currentProfile: 'Perfil Atual',
+    clear: 'Limpar',
+    clearTitle: 'Limpar todos os campos',
+    importing: 'Extraindo...',
+    importPdf: '1. Importar PDF',
+    fillExample: 'Preencher com Dados de Exemplo',
+    headline: 'Título (Headline)',
+    headlinePh: 'Ex: Analista de TI | Business Intelligence...',
+    targetRole: 'Cargo alvo',
+    targetRolePh: 'Ex: Analista de Dados Sênior / Data Analyst',
+    about: 'Sobre (Resumo)',
+    aboutPh: 'Cole aqui o texto da seção Sobre do seu perfil...',
+    experience: 'Experiências Profissionais',
+    experiencePh: 'Copie as descrições dos seus cargos atuais e anteriores...',
+    skills: 'Competências Principais',
+    skillsPh: 'Ex: Power BI, Python, SQL, Oracle, AWS',
+    generating: 'IA reescrevendo o perfil...',
+    generate: '2. Gerar Perfil Magnético',
+    readyTitle: 'A IA está pronta',
+    readyDesc:
+      'Importe seu currículo em PDF e deixe nossa IA transformar seus textos em um verdadeiro ímã de oportunidades.',
+    processingTitle: 'Processamento Neural',
+    processingDesc: 'Analisando SEO e aplicando matriz de conversão nas descrições...',
+    attractivenessScore: 'Score de Atratividade',
+    top1: 'Perfil Top 1%! Altamente magnético.',
+    almost: 'Quase lá! Aplique as sugestões da IA abaixo.',
+    generic: 'Perfil Genérico. Urgente aplicar a reescrita da IA.',
+    optimizedHeadline: 'Título Otimizado (SEO)',
+    salesLetter: 'Carta de Vendas (Resumo)',
+    impactMetrics: 'Métricas de Impacto (Experiência)',
+    techStack: 'Arsenal Técnico (Skills)',
+    goldenTip: 'Dica de Ouro da IA',
+    aiSuggestion: 'Sugestão Otimizada da IA',
+    copyText: 'Copiar Texto',
+    copied: 'Copiado!',
+    points: 'pts',
+    statusExcellent: 'Excelente',
+    statusAdjust: 'Ajustes Necessários',
+    statusCritical: 'Crítico',
+    copyAll: 'Copiar tudo',
+    downloadMd: 'Baixar .md',
+    downloadDocx: 'Baixar .docx',
+    placeholdersTitle: 'Métricas pendentes (placeholders)',
+    placeholdersDesc: 'Preencha os itens entre colchetes para deixar o texto “pronto para ATS”.',
+    placeholdersFound: 'placeholders encontrados',
+    previewTitle: 'Preview (estilo LinkedIn)',
+    previewDesc: 'Visualização rápida do texto final para copiar e colar.',
+    missingKey: 'Chave da Groq não configurada. Crie um .env.local com VITE_GROQ_API_KEY=...',
+    groqFail: 'Não foi possível conectar à IA da Groq. Verifique sua chave da API ou tente novamente.',
+    pdfTooLarge: 'PDF muito grande. Use um arquivo de até 10MB.',
+    pdfReadError: 'Erro ao ler o PDF. Tente colar os dados manualmente.',
+  },
+  en: {
+    language: 'Language',
+    portuguese: 'Português (BR)',
+    english: 'English (US)',
+    tagline:
+      'An intelligent audit of your profile. Import your PDF and let our AI rewrite your career story using advanced recruiter-attraction techniques.',
+    currentProfile: 'Current Profile',
+    clear: 'Clear',
+    clearTitle: 'Clear all fields',
+    importing: 'Extracting...',
+    importPdf: '1. Import PDF',
+    fillExample: 'Fill with Example Data',
+    headline: 'Headline',
+    headlinePh: 'e.g.: Data Analyst | SQL, Power BI | Insights to revenue',
+    targetRole: 'Target role',
+    targetRolePh: 'e.g.: Senior Data Analyst',
+    about: 'About',
+    aboutPh: 'Paste your LinkedIn About section here...',
+    experience: 'Work Experience',
+    experiencePh: 'Paste descriptions from your current and past roles...',
+    skills: 'Top Skills',
+    skillsPh: 'e.g.: Power BI, Python, SQL, AWS',
+    generating: 'AI is rewriting your profile...',
+    generate: '2. Generate Magnetic Profile',
+    readyTitle: 'AI is ready',
+    readyDesc: 'Import your PDF and let our AI turn your text into a real opportunity magnet.',
+    processingTitle: 'Neural Processing',
+    processingDesc: 'Analyzing SEO/ATS and applying conversion frameworks...',
+    attractivenessScore: 'Attractiveness Score',
+    top1: 'Top 1% profile! Highly magnetic.',
+    almost: 'Almost there! Apply the suggestions below.',
+    generic: 'Generic profile. Apply the rewrite urgently.',
+    optimizedHeadline: 'SEO-Optimized Headline',
+    salesLetter: 'Sales Letter (About)',
+    impactMetrics: 'Impact Metrics (Experience)',
+    techStack: 'Technical Stack (Skills)',
+    goldenTip: 'AI Golden Tip',
+    aiSuggestion: 'AI-Optimized Suggestion',
+    copyText: 'Copy text',
+    copied: 'Copied!',
+    points: 'pts',
+    statusExcellent: 'Excellent',
+    statusAdjust: 'Needs work',
+    statusCritical: 'Critical',
+    copyAll: 'Copy all',
+    downloadMd: 'Download .md',
+    downloadDocx: 'Download .docx',
+    placeholdersTitle: 'Missing metrics (placeholders)',
+    placeholdersDesc: 'Fill items in brackets to make the text ATS-ready.',
+    placeholdersFound: 'placeholders found',
+    previewTitle: 'Preview (LinkedIn style)',
+    previewDesc: 'Quick view of the final text to copy/paste.',
+    missingKey: 'Groq key not configured. Create a .env.local with VITE_GROQ_API_KEY=...',
+    groqFail: 'Could not connect to Groq. Check your API key or try again.',
+    pdfTooLarge: 'PDF too large. Please use a file up to 10MB.',
+    pdfReadError: 'Could not read the PDF. Try pasting the text manually.',
+  },
+};
+
+const extractPlaceholders = (text) => {
+  if (!text) return [];
+  return text.match(/\[[^\]\n]{2,80}\]/g) ?? [];
+};
+
+const safeClipboardWrite = async (text) => {
+  if (!text) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    throw new Error('Clipboard API indisponível');
+  } catch {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.position = 'fixed';
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+};
 
 // --- Extrator de PDF (PDF.js Dinâmico) ---
 const loadPDFJS = async () => {
@@ -60,11 +205,16 @@ const parseLinkedInText = (text) => {
 };
 
 // --- Integração com IA Real (Groq API) ---
-const analyzeWithAI = async (profileData) => {
+const analyzeWithAI = async (profileData, options) => {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) {
-    throw new Error('Chave da Groq não configurada. Crie um .env.local com VITE_GROQ_API_KEY=...');
+    const isEn = options?.lang === 'en';
+    throw new Error(isEn ? I18N.en.missingKey : I18N.pt.missingKey);
   }
+
+  const isEn = options?.lang === 'en';
+  const outputLanguage = isEn ? 'English (US)' : 'Português (Brasil)';
+  const targetRole = (options?.targetRole ?? '').trim();
 
   // Prompt do Sistema altamente assertivo e focado em alta performance
   const systemInstruction = `
@@ -72,10 +222,19 @@ const analyzeWithAI = async (profileData) => {
     Sua análise deve ser cruelmente honesta, direta e orientada a conversão (conseguir entrevistas).
     Remova qualquer clichê, linguagem passiva ou jargões vazios ("motivado", "focado").
 
+    CONTEXTO (Obrigatório):
+    - Idioma de saída: ${outputLanguage}. Escreva TODOS os textos de "suggestion" e "goldenTip" nesse idioma.
+    - Cargo alvo (se informado): ${targetRole || '[não informado — inferir pelo perfil]'}.
+
     REGRAS DE REESCRITA (Obrigatórias):
     - HEADLINE: Máximo 120 caracteres. Use o formato: [Cargo Alvo] | [Hard Skill 1, Hard Skill 2] | [Proposta de Valor Curta]. 
     - SOBRE (About): 3 a 4 parágrafos curtos. Foque em anos de experiência, especialidade principal, maiores conquistas e um Call to Action (CTA) claro no final.
-    - EXPERIÊNCIA: Você DEVE usar a Fórmula X-Y-Z do Google ("Realizei [X], medido por [Y], fazendo [Z]"). Inicie cada bullet point com um verbo de ação forte no passado (Ex: Otimizei, Arquitetei, Lideri). Invente placeholders [como este] se faltarem métricas, para o usuário preencher depois.
+    - EXPERIÊNCIA (Muito importante): Reescreva e otimize TODO o texto de experiência fornecido pelo usuário — não foque apenas no último cargo.
+      - Se houver múltiplas posições/empresas, preserve todas e mantenha a ordem original (mais recente → mais antiga).
+      - Para cada cargo, gere 3 a 6 bullets usando a Fórmula X-Y-Z do Google: "Realizei [X], medido por [Y], fazendo [Z]".
+      - Comece cada bullet com um verbo forte no passado (Ex: Otimizei, Arquitetei, Liderei, Automatizei, Reduzi, Implementei).
+      - Se faltarem números/métricas, crie placeholders claros entre colchetes (ex.: [redução de 18%], [R$ X], [tempo em minutos]).
+      - Formatação: organize por cargo (ex.: "Cargo — Empresa (Período)") e bullets em linhas separadas com "- ".
     - SKILLS: Filtre e organize as top 15 Hard Skills mais relevantes para sistemas ATS. Remova soft skills genéricas dessa seção.
 
     MUITO IMPORTANTE: Você DEVE retornar APENAS um objeto JSON válido. NENHUM texto fora do JSON.
@@ -104,11 +263,11 @@ const analyzeWithAI = async (profileData) => {
           "suggestion": "Texto da reescrita aqui"
         }
       },
-      "goldenTip": "Uma dica de ouro impactante aqui"
+      "goldenTip": "Explique em 2-4 frases o que é a fórmula X-Y-Z e dê 1 exemplo prático aplicado ao perfil do usuário."
     }
   `;
 
-  const prompt = `Analise este perfil com rigor:\n\nTítulo: ${profileData.headline}\n\nResumo: ${profileData.about}\n\nExperiência: ${profileData.experience}\n\nCompetências: ${profileData.skills}`;
+  const prompt = `Analise este perfil com rigor:\n\nCargo alvo (se existir): ${targetRole || '(não informado)'}\n\nTítulo: ${profileData.headline}\n\nResumo: ${profileData.about}\n\nExperiência (texto completo, pode conter vários cargos): ${profileData.experience}\n\nCompetências: ${profileData.skills}`;
 
   const payload = {
     model: "llama-3.3-70b-versatile", // Modelo gratuito e poderoso da Groq
@@ -141,7 +300,7 @@ const analyzeWithAI = async (profileData) => {
       const resultText = data.choices[0].message.content;
       return JSON.parse(resultText);
     } catch (error) {
-      if (i === 4) throw new Error("Não foi possível conectar à IA da Groq. Verifique sua chave da API ou tente novamente.");
+      if (i === 4) throw new Error(isEn ? I18N.en.groqFail : I18N.pt.groqFail);
       await new Promise(r => setTimeout(r, delays[i]));
     }
   }
@@ -184,7 +343,7 @@ const ScoreRing = ({ score }) => {
   );
 };
 
-const FeedbackCard = ({ title, icon: Icon, data }) => {
+const FeedbackCard = ({ title, icon: Icon, data, t }) => {
   const [copied, setCopied] = useState(false);
 
   const getStatusColor = (score) => {
@@ -194,32 +353,15 @@ const FeedbackCard = ({ title, icon: Icon, data }) => {
   };
 
   const getStatusText = (score) => {
-    if (score >= 90) return { text: 'Excelente', color: 'text-emerald-400' };
-    if (score >= 70) return { text: 'Ajustes Necessários', color: 'text-amber-400' };
-    return { text: 'Crítico', color: 'text-rose-400' };
+    if (score >= 90) return { text: t('statusExcellent'), color: 'text-emerald-400' };
+    if (score >= 70) return { text: t('statusAdjust'), color: 'text-amber-400' };
+    return { text: t('statusCritical'), color: 'text-rose-400' };
   };
 
   const copyToClipboard = async () => {
     if (!data.suggestion) return;
 
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(data.suggestion);
-      } else {
-        throw new Error('Clipboard API indisponível');
-      }
-    } catch {
-      const el = document.createElement('textarea');
-      el.value = data.suggestion;
-      el.setAttribute('readonly', '');
-      el.style.position = 'fixed';
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand('copy');
-      document.body.removeChild(el);
-    }
+    await safeClipboardWrite(data.suggestion);
 
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -237,7 +379,7 @@ const FeedbackCard = ({ title, icon: Icon, data }) => {
           <h3 className="font-bold text-white text-lg tracking-wide">{title}</h3>
         </div>
         <span className={`font-bold text-xs px-3 py-1.5 rounded-full bg-slate-900 border border-white/10 ${status.color}`}>
-          {status.text} ({data.score} pts)
+          {status.text} ({data.score} {t('points')})
         </span>
       </div>
       
@@ -258,14 +400,14 @@ const FeedbackCard = ({ title, icon: Icon, data }) => {
         <div className="mt-4 pt-4 border-t border-indigo-500/20">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-2">
-              <Sparkles size={14} /> Sugestão Otimizada da IA
+              <Sparkles size={14} /> {t('aiSuggestion')}
             </h4>
             <button 
               onClick={copyToClipboard}
               className="text-xs flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-indigo-500 font-semibold"
             >
               {copied ? <CheckCircle size={14} className="text-emerald-400" /> : <Copy size={14} />}
-              {copied ? 'Copiado!' : 'Copiar Texto'}
+              {copied ? t('copied') : t('copyText')}
             </button>
           </div>
           <div className="bg-[#0B1120] p-4 rounded-xl text-sm text-slate-200 border border-slate-700/50 whitespace-pre-wrap leading-relaxed font-mono text-[13px] shadow-inner">
@@ -284,8 +426,17 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isParsingPDF, setIsParsingPDF] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [uiLang, setUiLang] = useState('pt');
+  const [targetRole, setTargetRole] = useState('');
+  const [bulkActionState, setBulkActionState] = useState(null); // 'copied' | 'downloaded-md' | 'downloaded-docx'
 
-  const STORAGE_KEY = 'linkedin-magnet-ai:v1';
+  const placeholdersRef = useRef(null);
+
+  const STORAGE_KEY = 'linkedin-magnet-ai:v2';
+
+  const t = useMemo(() => {
+    return (key) => I18N[uiLang]?.[key] ?? I18N.pt[key] ?? key;
+  }, [uiLang]);
 
   useEffect(() => {
     try {
@@ -298,6 +449,12 @@ export default function App() {
       if (parsed?.analysis) {
         setAnalysis(parsed.analysis);
       }
+      if (parsed?.uiLang) {
+        setUiLang(parsed.uiLang === 'en' ? 'en' : 'pt');
+      }
+      if (typeof parsed?.targetRole === 'string') {
+        setTargetRole(parsed.targetRole);
+      }
     } catch {
       // ignore
     }
@@ -306,11 +463,11 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ formData, analysis }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ formData, analysis, uiLang, targetRole }));
     } catch {
       // ignore
     }
-  }, [formData, analysis]);
+  }, [formData, analysis, uiLang, targetRole]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -321,6 +478,7 @@ export default function App() {
     setFormData(initialState);
     setAnalysis(null);
     setErrorMsg("");
+    setTargetRole('');
   };
 
   const handleFileUpload = async (e) => {
@@ -329,7 +487,7 @@ export default function App() {
 
     const maxSizeBytes = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSizeBytes) {
-      setErrorMsg('PDF muito grande. Use um arquivo de até 10MB.');
+      setErrorMsg(t('pdfTooLarge'));
       e.target.value = null;
       return;
     }
@@ -364,7 +522,7 @@ export default function App() {
       }));
     } catch (err) {
       console.error(err);
-      setErrorMsg("Erro ao ler o PDF. Tente colar os dados manualmente.");
+      setErrorMsg(t('pdfReadError'));
     } finally {
       setIsParsingPDF(false);
       e.target.value = null;
@@ -376,7 +534,7 @@ export default function App() {
     setErrorMsg("");
     setAnalysis(null);
     try {
-      const result = await analyzeWithAI(formData);
+      const result = await analyzeWithAI(formData, { lang: uiLang, targetRole });
       setAnalysis(result);
       setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
     } catch (error) {
@@ -387,12 +545,133 @@ export default function App() {
   };
 
   const loadExample = () => {
+    if (uiLang === 'en') {
+      setTargetRole('Senior Data Analyst');
+      setFormData({
+        headline: 'Data Analyst | SQL, Power BI',
+        about: 'I work with BI and analytics, turning data into decisions. I build dashboards in Power BI and automate reporting. I am focused on impact and measurable outcomes.',
+        experience:
+          'Data Analyst — Company X\nBuilt Power BI dashboards for executives and automated recurring reports. Worked with SQL Server and Oracle to improve data quality.',
+        skills: 'Power BI, SQL, Python, Excel, AWS'
+      });
+      return;
+    }
+
+    setTargetRole('Analista de Dados Sênior');
     setFormData({
       headline: 'Analista de Sistemas | BI e Dados',
       about: 'Trabalho com análise de dados e BI. Faço relatórios em PowerBI e dou suporte para a empresa. Sou muito focado e proativo.',
-      experience: 'Analista na Empresa X\nFazia manutenção de servidores e criava dashboards no Power BI para a diretoria. Trabalhava com SQL Server e Oracle.',
-      skills: 'Power BI, SQL, Python, Excel, Proatividade, Liderança'
+      experience:
+        'Analista — Empresa X\nCriava dashboards no Power BI para a diretoria e automatizava relatórios. Trabalhava com SQL Server e Oracle para melhorar a qualidade dos dados.',
+      skills: 'Power BI, SQL, Python, Excel, AWS'
     });
+  };
+
+  const finalHeadline = analysis?.feedback?.headline?.suggestion || formData.headline;
+  const finalAbout = analysis?.feedback?.about?.suggestion || formData.about;
+  const finalExperience = analysis?.feedback?.experience?.suggestion || formData.experience;
+  const finalSkills = analysis?.feedback?.skills?.suggestion || formData.skills;
+
+  const allTextMarkdown = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return `# LinkedIn Magnet AI - By Aurora Business\n\n_Date: ${today}_\n\n## Headline\n${finalHeadline || ''}\n\n## About\n${finalAbout || ''}\n\n## Experience\n${finalExperience || ''}\n\n## Skills\n${finalSkills || ''}\n`;
+  }, [finalAbout, finalExperience, finalHeadline, finalSkills]);
+
+  const placeholders = useMemo(() => {
+    const values = [
+      analysis?.feedback?.headline?.suggestion,
+      analysis?.feedback?.about?.suggestion,
+      analysis?.feedback?.experience?.suggestion,
+      analysis?.feedback?.skills?.suggestion,
+    ];
+    const set = new Set();
+    for (const value of values) {
+      for (const ph of extractPlaceholders(value)) {
+        set.add(ph);
+      }
+    }
+    return Array.from(set);
+  }, [analysis]);
+
+  const hasPlaceholders = placeholders.length > 0;
+
+  const nudgeToPlaceholders = () => {
+    if (!hasPlaceholders) return;
+    placeholdersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleCopyAll = async () => {
+    await safeClipboardWrite(allTextMarkdown);
+    setBulkActionState('copied');
+    setTimeout(() => setBulkActionState(null), 1500);
+    nudgeToPlaceholders();
+  };
+
+  const handleDownloadMd = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([allTextMarkdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `linkedin-magnet-ai-${today}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setBulkActionState('downloaded-md');
+    setTimeout(() => setBulkActionState(null), 1500);
+    nudgeToPlaceholders();
+  };
+
+  const handleDownloadDocx = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Import dinâmico para não pesar no bundle inicial
+    const docx = await import('docx');
+    const { Document, Packer, Paragraph, HeadingLevel } = docx;
+
+    const linesToParagraphs = (value) => {
+      const text = (value ?? '').toString();
+      const lines = text.split(/\r?\n/);
+      return lines.map((line) => new Paragraph({ text: line }));
+    };
+
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({ text: 'LinkedIn Magnet AI - By Aurora Business', heading: HeadingLevel.TITLE }),
+            new Paragraph({ text: '' }),
+            new Paragraph({ text: 'Headline', heading: HeadingLevel.HEADING_1 }),
+            ...linesToParagraphs(finalHeadline),
+            new Paragraph({ text: '' }),
+            new Paragraph({ text: 'About', heading: HeadingLevel.HEADING_1 }),
+            ...linesToParagraphs(finalAbout),
+            new Paragraph({ text: '' }),
+            new Paragraph({ text: 'Experience', heading: HeadingLevel.HEADING_1 }),
+            ...linesToParagraphs(finalExperience),
+            new Paragraph({ text: '' }),
+            new Paragraph({ text: 'Skills', heading: HeadingLevel.HEADING_1 }),
+            ...linesToParagraphs(finalSkills),
+          ],
+        },
+      ],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `linkedin-magnet-ai-${today}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    setBulkActionState('downloaded-docx');
+    setTimeout(() => setBulkActionState(null), 1500);
+    nudgeToPlaceholders();
   };
 
   return (
@@ -408,6 +687,19 @@ export default function App() {
         
         {/* Header */}
         <div className="text-center mb-12">
+          <div className="flex justify-end mb-4">
+            <label className="text-xs text-slate-400 flex items-center gap-2">
+              <span className="font-semibold">{t('language')}</span>
+              <select
+                value={uiLang}
+                onChange={(e) => setUiLang(e.target.value === 'en' ? 'en' : 'pt')}
+                className="bg-slate-900/50 border border-slate-700/50 text-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="pt">{t('portuguese')}</option>
+                <option value="en">{t('english')}</option>
+              </select>
+            </label>
+          </div>
           <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl mb-6 shadow-lg shadow-indigo-500/20 ring-1 ring-white/10">
             <Bot className="text-white w-8 h-8" />
           </div>
@@ -415,7 +707,7 @@ export default function App() {
             LinkedIn <span className="text-indigo-500">Magnet</span> AI - By Aurora Business
           </h1>
           <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
-            A auditoria inteligente do seu perfil. Importe seu PDF e deixe nossa IA reescrever sua trajetória com técnicas avançadas de atração de recrutadores.
+            {t('tagline')}
           </p>
         </div>
 
@@ -428,23 +720,23 @@ export default function App() {
             
             <div className="p-6 bg-slate-800/30 border-b border-slate-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <FileText className="text-indigo-400" /> Perfil Atual
+                <FileText className="text-indigo-400" /> {t('currentProfile')}
               </h2>
               
               <div className="flex flex-wrap items-center justify-center gap-3 text-sm w-full sm:w-auto">
                  <button 
                    onClick={handleClearData} 
                    className="flex items-center gap-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-400/10 px-3 py-2 rounded-lg transition-colors text-xs font-semibold"
-                   title="Limpar todos os campos"
+                   title={t('clearTitle')}
                  >
-                   <Trash2 size={14} /> Limpar
+                   <Trash2 size={14} /> {t('clear')}
                  </button>
                  
                  <div className="hidden sm:block w-px h-4 bg-slate-700"></div>
 
                  <label className={`flex items-center gap-2 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-indigo-500/20 font-semibold flex-1 sm:flex-none justify-center ${isParsingPDF ? 'opacity-70 pointer-events-none animate-pulse' : ''}`}>
                     {isParsingPDF ? <Zap size={16} /> : <UploadCloud size={16} />}
-                    {isParsingPDF ? 'Extraindo...' : '1. Importar PDF'}
+                    {isParsingPDF ? t('importing') : t('importPdf')}
                     <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} disabled={isParsingPDF} />
                  </label>
               </div>
@@ -453,7 +745,7 @@ export default function App() {
             {/* Link exemplo na barra cinza abaixo do header */}
             <div className="px-6 pt-3 pb-0 text-right">
                 <button onClick={loadExample} className="text-slate-500 hover:text-indigo-400 transition-colors text-xs font-medium underline underline-offset-2">
-                  Preencher com Dados de Exemplo
+                  {t('fillExample')}
                 </button>
             </div>
 
@@ -461,14 +753,28 @@ export default function App() {
               {/* Headline */}
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
-                  <User size={16} className="text-indigo-400"/> Título (Headline)
+                  <User size={16} className="text-indigo-400"/> {t('headline')}
                 </label>
                 <input
                   type="text"
                   name="headline"
                   value={formData.headline}
                   onChange={handleInputChange}
-                  placeholder="Ex: Analista de TI | Business Intelligence..."
+                  placeholder={t('headlinePh')}
+                  className="w-full p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
+                />
+              </div>
+
+              {/* Target Role */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                  <Target size={16} className="text-indigo-400" /> {t('targetRole')}
+                </label>
+                <input
+                  type="text"
+                  value={targetRole}
+                  onChange={(e) => setTargetRole(e.target.value)}
+                  placeholder={t('targetRolePh')}
                   className="w-full p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
                 />
               </div>
@@ -476,14 +782,14 @@ export default function App() {
               {/* About */}
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
-                  <Activity size={16} className="text-indigo-400"/> Sobre (Resumo)
+                  <Activity size={16} className="text-indigo-400"/> {t('about')}
                 </label>
                 <textarea
                   name="about"
                   value={formData.about}
                   onChange={handleInputChange}
                   rows="4"
-                  placeholder="Cole aqui o texto da seção Sobre do seu perfil..."
+                  placeholder={t('aboutPh')}
                   className="w-full min-h-[120px] p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
                 ></textarea>
               </div>
@@ -491,14 +797,14 @@ export default function App() {
               {/* Experience */}
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
-                  <Briefcase size={16} className="text-indigo-400"/> Experiências Profissionais
+                  <Briefcase size={16} className="text-indigo-400"/> {t('experience')}
                 </label>
                 <textarea
                   name="experience"
                   value={formData.experience}
                   onChange={handleInputChange}
                   rows="6"
-                  placeholder="Copie as descrições dos seus cargos atuais e anteriores..."
+                  placeholder={t('experiencePh')}
                   className="w-full h-full min-h-[160px] p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
                 ></textarea>
               </div>
@@ -506,14 +812,14 @@ export default function App() {
               {/* Skills */}
               <div className="pb-2">
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
-                  <Star size={16} className="text-indigo-400"/> Competências Principais
+                  <Star size={16} className="text-indigo-400"/> {t('skills')}
                 </label>
                 <input
                   type="text"
                   name="skills"
                   value={formData.skills}
                   onChange={handleInputChange}
-                  placeholder="Ex: Power BI, Python, SQL, Oracle, AWS"
+                  placeholder={t('skillsPh')}
                   className="w-full p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-600"
                 />
               </div>
@@ -536,10 +842,10 @@ export default function App() {
                   {isAnalyzing ? (
                     <>
                       <Sparkles className="animate-pulse text-indigo-300" size={20} />
-                      IA reescrevendo o perfil...
+                      {t('generating')}
                     </>
                   ) : (
-                    <>2. Gerar Perfil Magnético <ChevronRight size={20} /></>
+                    <>{t('generate')} <ChevronRight size={20} /></>
                   )}
                 </span>
               </button>
@@ -555,7 +861,8 @@ export default function App() {
                     <Bot size={64} className="text-slate-600 relative z-10" />
                   </div>
                   <h3 className="text-2xl font-bold mb-3 text-slate-300">A IA está pronta</h3>
-                  <p className="max-w-md">Importe seu currículo em PDF e deixe nossa IA transformar seus textos em um verdadeiro ímã de oportunidades.</p>
+                  <h3 className="text-2xl font-bold mb-3 text-slate-300">{t('readyTitle')}</h3>
+                  <p className="max-w-md">{t('readyDesc')}</p>
                </div>
             ) : isAnalyzing ? (
                <div className="flex-1 h-full min-h-[600px] bg-slate-900/50 backdrop-blur-md rounded-3xl border border-indigo-500/30 shadow-2xl flex flex-col items-center justify-center p-10 text-center">
@@ -564,30 +871,79 @@ export default function App() {
                     <div className="w-24 h-24 absolute inset-0 border-r-4 border-l-4 border-violet-500 rounded-full animate-[spin_2s_reverse_infinite]"></div>
                     <Bot size={32} className="absolute inset-0 m-auto text-indigo-400 animate-pulse" />
                   </div>
-                  <h3 className="text-xl font-bold mt-8 text-white mb-2">Processamento Neural</h3>
-                  <p className="text-slate-400 animate-pulse">Analisando SEO e aplicando matriz de conversão nas descrições...</p>
+                  <h3 className="text-xl font-bold mt-8 text-white mb-2">{t('processingTitle')}</h3>
+                  <p className="text-slate-400 animate-pulse">{t('processingDesc')}</p>
                </div>
             ) : (
               <div className="flex-1 bg-slate-900/50 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-700/50 overflow-hidden flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="p-8 bg-gradient-to-b from-indigo-900/20 to-slate-900/0 border-b border-slate-700/50 text-center">
                   <h2 className="text-sm font-bold uppercase tracking-widest text-indigo-400 mb-6 flex items-center justify-center gap-2">
-                    <Target size={16}/> Score de Atratividade
+                    <Target size={16}/> {t('attractivenessScore')}
                   </h2>
                   <ScoreRing score={analysis.score} />
                   
                   <div className="mt-6">
-                    {analysis.score >= 90 && <p className="text-emerald-400 font-bold flex items-center justify-center gap-2 text-lg"><Award/> Perfil Top 1%! Altamente magnético.</p>}
-                    {analysis.score >= 70 && analysis.score < 90 && <p className="text-amber-400 font-bold text-lg">Quase lá! Aplique as sugestões da IA abaixo.</p>}
-                    {analysis.score < 70 && <p className="text-rose-400 font-bold text-lg">Perfil Genérico. Urgente aplicar a reescrita da IA.</p>}
+                    {analysis.score >= 90 && <p className="text-emerald-400 font-bold flex items-center justify-center gap-2 text-lg"><Award/> {t('top1')}</p>}
+                    {analysis.score >= 70 && analysis.score < 90 && <p className="text-amber-400 font-bold text-lg">{t('almost')}</p>}
+                    {analysis.score < 70 && <p className="text-rose-400 font-bold text-lg">{t('generic')}</p>}
                   </div>
                 </div>
 
                 <div className="p-6 flex-1 overflow-y-auto custom-scrollbar max-h-[800px]">
+
+                  <div className="flex flex-wrap gap-3 mb-6">
+                    <button
+                      onClick={handleCopyAll}
+                      className="text-xs flex items-center gap-1.5 text-slate-300 hover:text-white transition-colors bg-slate-900 px-3 py-2 rounded-lg border border-slate-700 hover:border-indigo-500 font-semibold"
+                    >
+                      <Copy size={14} /> {t('copyAll')}
+                    </button>
+                    <button
+                      onClick={handleDownloadMd}
+                      className="text-xs flex items-center gap-1.5 text-slate-300 hover:text-white transition-colors bg-slate-900 px-3 py-2 rounded-lg border border-slate-700 hover:border-indigo-500 font-semibold"
+                    >
+                      <FileText size={14} className="text-indigo-400" /> {t('downloadMd')}
+                    </button>
+                    <button
+                      onClick={handleDownloadDocx}
+                      className="text-xs flex items-center gap-1.5 text-slate-300 hover:text-white transition-colors bg-slate-900 px-3 py-2 rounded-lg border border-slate-700 hover:border-indigo-500 font-semibold"
+                    >
+                      <FileText size={14} className="text-indigo-400" /> {t('downloadDocx')}
+                    </button>
+
+                    {hasPlaceholders && (
+                      <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-lg">
+                        <AlertTriangle size={14} className="text-amber-400" />
+                        <span className="font-semibold">{placeholders.length}</span>
+                        <span>{t('placeholdersFound')}</span>
+                      </div>
+                    )}
+
+                    {bulkActionState === 'copied' && (
+                      <div className="flex items-center gap-2 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-lg">
+                        <CheckCircle size={14} className="text-emerald-400" /> {t('copied')}
+                      </div>
+                    )}
+                  </div>
                   
-                  <FeedbackCard title="Título Otimizado (SEO)" icon={User} data={analysis.feedback.headline} />
-                  <FeedbackCard title="Carta de Vendas (Resumo)" icon={Activity} data={analysis.feedback.about} />
-                  <FeedbackCard title="Métricas de Impacto (Experiência)" icon={Briefcase} data={analysis.feedback.experience} />
-                  <FeedbackCard title="Arsenal Técnico (Skills)" icon={Star} data={analysis.feedback.skills} />
+                  <FeedbackCard title={t('optimizedHeadline')} icon={User} data={analysis.feedback.headline} t={t} />
+                  <FeedbackCard title={t('salesLetter')} icon={Activity} data={analysis.feedback.about} t={t} />
+                  <FeedbackCard title={t('impactMetrics')} icon={Briefcase} data={analysis.feedback.experience} t={t} />
+                  <FeedbackCard title={t('techStack')} icon={Star} data={analysis.feedback.skills} t={t} />
+
+                  {placeholders.length > 0 && (
+                    <div ref={placeholdersRef} className="mb-6 p-5 rounded-2xl border border-slate-700/50 bg-slate-900/30 backdrop-blur-sm">
+                      <h4 className="font-bold text-white mb-1">{t('placeholdersTitle')}</h4>
+                      <p className="text-sm text-slate-400">{t('placeholdersDesc')}</p>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {placeholders.map((ph) => (
+                          <span key={ph} className="text-xs px-2.5 py-1 rounded-full bg-slate-950/50 border border-slate-700/50 text-slate-200 font-mono">
+                            {ph}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   
                   {analysis.goldenTip && (
                     <div className="mt-8 p-6 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 rounded-2xl border border-indigo-500/30 relative overflow-hidden">
@@ -595,13 +951,40 @@ export default function App() {
                          <Sparkles size={100} />
                       </div>
                       <h4 className="font-bold text-indigo-300 flex items-center gap-2 mb-3 text-lg relative z-10">
-                        <Bot className="text-indigo-400" /> Dica de Ouro da IA
+                        <Bot className="text-indigo-400" /> {t('goldenTip')}
                       </h4>
                       <p className="text-sm text-slate-300 leading-relaxed relative z-10 text-justify">
                         {analysis.goldenTip}
                       </p>
                     </div>
                   )}
+
+                  <div className="mt-8 p-6 bg-slate-900/40 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
+                    <h4 className="font-bold text-white mb-1">{t('previewTitle')}</h4>
+                    <p className="text-sm text-slate-400 mb-4">{t('previewDesc')}</p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Headline</div>
+                        <div className="text-slate-200 font-semibold">{finalHeadline || '-'}</div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">About</div>
+                        <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{finalAbout || '-'}</div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Experience</div>
+                        <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{finalExperience || '-'}</div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Skills</div>
+                        <div className="text-sm text-slate-200 whitespace-pre-wrap">{finalSkills || '-'}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
