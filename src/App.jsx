@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Briefcase, User, FileText, Star, AlertTriangle, 
   CheckCircle, ChevronRight, Zap, Target, Award,
@@ -61,8 +61,10 @@ const parseLinkedInText = (text) => {
 
 // --- Integração com IA Real (Groq API) ---
 const analyzeWithAI = async (profileData) => {
-  // Chave da API inserida diretamente para uso rápido
-  const apiKey = "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"; 
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error('Chave da Groq não configurada. Crie um .env.local com VITE_GROQ_API_KEY=...');
+  }
 
   // Prompt do Sistema altamente assertivo e focado em alta performance
   const systemInstruction = `
@@ -283,6 +285,33 @@ export default function App() {
   const [isParsingPDF, setIsParsingPDF] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const STORAGE_KEY = 'linkedin-magnet-ai:v1';
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.formData) {
+        setFormData({ ...initialState, ...parsed.formData });
+      }
+      if (parsed?.analysis) {
+        setAnalysis(parsed.analysis);
+      }
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ formData, analysis }));
+    } catch {
+      // ignore
+    }
+  }, [formData, analysis]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -297,6 +326,13 @@ export default function App() {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || file.type !== 'application/pdf') return;
+
+    const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSizeBytes) {
+      setErrorMsg('PDF muito grande. Use um arquivo de até 10MB.');
+      e.target.value = null;
+      return;
+    }
     
     setIsParsingPDF(true);
     try {
@@ -572,14 +608,6 @@ export default function App() {
           </div>
         </div>
       </div>
-      
-      {/* Estilos customizados locais */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(99, 102, 241, 0.4); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(99, 102, 241, 0.8); }
-      `}} />
     </div>
   );
 }
