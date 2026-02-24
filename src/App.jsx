@@ -1115,7 +1115,7 @@ export default function App() {
               </div>
 
               {/* Experience */}
-              <div className="flex-1">
+              <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
                   <Briefcase size={16} className="text-indigo-400"/> {t('experience')}
                 </label>
@@ -1125,12 +1125,12 @@ export default function App() {
                   onChange={handleInputChange}
                   rows="6"
                   placeholder={t('experiencePh')}
-                  className="w-full h-full min-h-[160px] p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
+                  className="w-full min-h-[220px] max-h-[420px] p-4 rounded-xl border border-slate-700 bg-slate-950/50 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-y custom-scrollbar placeholder:text-slate-600"
                 ></textarea>
               </div>
 
               {/* Skills */}
-              <div className="pb-2">
+              <div className="pt-2">
                 <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
                   <Star size={16} className="text-indigo-400"/> {t('skills')}
                 </label>
