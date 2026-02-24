@@ -10,6 +10,26 @@ body {
   min-width: 320px;
 }
 
+@keyframes robot-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.robot-float {
+  animation: robot-float 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .robot-float {
+    animation: none;
+  }
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }

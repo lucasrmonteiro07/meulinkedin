@@ -63,6 +63,16 @@ const I18N = {
     groqFail: 'Não foi possível conectar à IA da Groq. Verifique sua chave da API ou tente novamente.',
     pdfTooLarge: 'PDF muito grande. Use um arquivo de até 10MB.',
     pdfReadError: 'Erro ao ler o PDF. Tente colar os dados manualmente.',
+
+    proReportTitle: 'Relatório Profissional (Perfil Ouro)',
+    level: 'Nível',
+    profileStrengthIndex: 'Índice de Força do Perfil',
+    headlineVersions: '3 Headline prontas',
+    keywordMapTitle: 'Mapa de Palavras-chave',
+    seoIndexTitle: 'Índice de Encontrabilidade (SEO)',
+    planTitle: 'Plano 30-60-90',
+    checklistTitle: 'Checklist Perfil Ouro',
+    finalVerdictTitle: 'Veredito Final',
   },
   en: {
     language: 'Language',
@@ -120,7 +130,91 @@ const I18N = {
     groqFail: 'Could not connect to Groq. Check your API key or try again.',
     pdfTooLarge: 'PDF too large. Please use a file up to 10MB.',
     pdfReadError: 'Could not read the PDF. Try pasting the text manually.',
+
+    proReportTitle: 'Professional Report (Gold Profile)',
+    level: 'Level',
+    profileStrengthIndex: 'Profile Strength Index',
+    headlineVersions: '3 ready-to-copy headlines',
+    keywordMapTitle: 'Keyword Map',
+    seoIndexTitle: 'Findability Index (SEO)',
+    planTitle: '30-60-90 Plan',
+    checklistTitle: 'Gold Profile Checklist',
+    finalVerdictTitle: 'Final Verdict',
   },
+};
+
+const sanitizeJsonText = (text) => {
+  if (typeof text !== 'string') return '';
+
+  let out = text.trim();
+
+  // Remove code fences if the model accidentally returns them.
+  out = out.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '');
+
+  // Convert \u{1F600} -> actual unicode char (JSON does not support \u{...}).
+  out = out.replace(/\\u\{([0-9a-fA-F]{1,6})\}/g, (_m, hex) => {
+    const codePoint = Number.parseInt(hex, 16);
+    if (!Number.isFinite(codePoint)) return '';
+    try {
+      return String.fromCodePoint(codePoint);
+    } catch {
+      return '';
+    }
+  });
+
+  // Fix invalid unicode escapes like "\u12G4" by escaping the backslash.
+  out = out.replace(/\\u(?![0-9a-fA-F]{4})/g, '\\\\u');
+
+  return out;
+};
+
+const parseModelJsonObject = (rawText) => {
+  const sanitized = sanitizeJsonText(rawText);
+  if (!sanitized) {
+    throw new Error('Resposta vazia da IA');
+  }
+
+  try {
+    return JSON.parse(sanitized);
+  } catch {
+    // Fallback: extract the first JSON object from the text.
+    const start = sanitized.indexOf('{');
+    const end = sanitized.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) throw new Error('JSON inválido');
+    const candidate = sanitized.slice(start, end + 1);
+    return JSON.parse(candidate);
+  }
+};
+
+const normalizeAnalysis = (value) => {
+  const safeNumber = (n, fallback = 0) => (Number.isFinite(Number(n)) ? Number(n) : fallback);
+  const safeItems = (items) => (Array.isArray(items) ? items : []);
+  const safeText = (s) => (typeof s === 'string' ? s : '');
+
+  const feedback = value?.feedback ?? {};
+  const section = (key) => {
+    const node = feedback?.[key] ?? {};
+    return {
+      score: safeNumber(node.score, 0),
+      items: safeItems(node.items).map((it) => ({
+        type: it?.type === 'success' || it?.type === 'warning' || it?.type === 'error' ? it.type : 'warning',
+        text: safeText(it?.text),
+      })),
+      suggestion: safeText(node.suggestion),
+    };
+  };
+
+  return {
+    score: safeNumber(value?.score, 0),
+    feedback: {
+      headline: section('headline'),
+      about: section('about'),
+      experience: section('experience'),
+      skills: section('skills'),
+    },
+    goldenTip: safeText(value?.goldenTip),
+    proReport: value?.proReport && typeof value.proReport === 'object' ? value.proReport : null,
+  };
 };
 
 const extractPlaceholders = (text) => {
@@ -237,6 +331,21 @@ const analyzeWithAI = async (profileData, options) => {
       - Formatação: organize por cargo (ex.: "Cargo — Empresa (Período)") e bullets em linhas separadas com "- ".
     - SKILLS: Filtre e organize as top 15 Hard Skills mais relevantes para sistemas ATS. Remova soft skills genéricas dessa seção.
 
+    DIAGNÓSTICO PROFISSIONAL (Obrigatório):
+    Você também é um Especialista em Marca Pessoal, Recrutamento Tech e SEO para LinkedIn.
+    Gere um diagnóstico profissional completo e classifique o perfil em: Iniciante | Intermediário | Avançado | PERFIL OURO.
+    Use apenas as informações fornecidas pelo usuário. Se algum tópico não estiver informado (ex.: Educação/Certificações/Engajamento), assuma como "não informado" e sinalize no checklist.
+
+    LIMITES (Obrigatório):
+    - Mantenha listas curtas e acionáveis (máx. 8 itens por lista).
+    - checklist: máx. 10 itens.
+    - plano 30-60-90: máx. 6 itens por período.
+
+    REGRAS DE SAÍDA (Crítico):
+    - Retorne APENAS JSON válido, sem markdown e sem blocos de código.
+    - NÃO use escapes unicode (ex.: \\u{...} ou \\uXXXX). Use caracteres normais UTF-8.
+    - Não use emojis.
+
     MUITO IMPORTANTE: Você DEVE retornar APENAS um objeto JSON válido. NENHUM texto fora do JSON.
     Siga ESTRITAMENTE esta estrutura de JSON para sua resposta:
     {
@@ -263,7 +372,49 @@ const analyzeWithAI = async (profileData, options) => {
           "suggestion": "Texto da reescrita aqui"
         }
       },
-      "goldenTip": "Explique em 2-4 frases o que é a fórmula X-Y-Z e dê 1 exemplo prático aplicado ao perfil do usuário."
+      "goldenTip": "Explique em 2-4 frases o que é a fórmula X-Y-Z e dê 1 exemplo prático aplicado ao perfil do usuário.",
+      "proReport": {
+        "level": "Iniciante|Intermediário|Avançado|PERFIL OURO",
+        "profileStrengthIndex": {
+          "total": 72,
+          "breakdown": {
+            "headlineProfessional": 10,
+            "aboutSummary": 9,
+            "experiences": 9,
+            "strategicKeywords": 8,
+            "measurableResults": 7,
+            "educationCertifications": 0,
+            "engagementAuthority": 0,
+            "positioningClarity": 4
+          }
+        },
+        "headlineVersions": {
+          "recruiters": "...",
+          "ats": "...",
+          "authority": "..."
+        },
+        "keywordMap": {
+          "priority": ["..."],
+          "whereToInsert": ["..."],
+          "idealFrequency": "..."
+        },
+        "seoFindability": {
+          "score": 68,
+          "tips": ["..."]
+        },
+        "plan306090": {
+          "d30": ["..."],
+          "d60": ["..."],
+          "d90": ["..."]
+        },
+        "checklist": [
+          { "status": "OK|AJUSTAR|CRÍTICO", "text": "..." }
+        ],
+        "finalVerdict": {
+          "verdict": "...",
+          "priorities": ["..."]
+        }
+      }
     }
   `;
 
@@ -298,7 +449,8 @@ const analyzeWithAI = async (profileData, options) => {
       
       const data = await response.json();
       const resultText = data.choices[0].message.content;
-      return JSON.parse(resultText);
+      const parsed = parseModelJsonObject(resultText);
+      return normalizeAnalysis(parsed);
     } catch (error) {
       if (i === 4) throw new Error(isEn ? I18N.en.groqFail : I18N.pt.groqFail);
       await new Promise(r => setTimeout(r, delays[i]));
@@ -447,7 +599,7 @@ export default function App() {
         setFormData({ ...initialState, ...parsed.formData });
       }
       if (parsed?.analysis) {
-        setAnalysis(parsed.analysis);
+        setAnalysis(normalizeAnalysis(parsed.analysis));
       }
       if (parsed?.uiLang) {
         setUiLang(parsed.uiLang === 'en' ? 'en' : 'pt');
@@ -456,7 +608,11 @@ export default function App() {
         setTargetRole(parsed.targetRole);
       }
     } catch {
-      // ignore
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -703,7 +859,7 @@ export default function App() {
           <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl mb-6 shadow-lg shadow-indigo-500/20 ring-1 ring-white/10">
             <Bot className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-indigo-300 tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-indigo-300 tracking-tight">
             LinkedIn <span className="text-indigo-500">Magnet</span> AI - By Aurora Business
           </h1>
           <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">
@@ -718,35 +874,33 @@ export default function App() {
           <div className="bg-slate-900/50 backdrop-blur-md rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden relative flex flex-col h-full">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-violet-500"></div>
             
-            <div className="p-6 bg-slate-800/30 border-b border-slate-700/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="p-6 bg-slate-800/30 border-b border-slate-700/50 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <FileText className="text-indigo-400" /> {t('currentProfile')}
               </h2>
               
-              <div className="flex flex-wrap items-center justify-center gap-3 text-sm w-full sm:w-auto">
-                 <button 
-                   onClick={handleClearData} 
-                   className="flex items-center gap-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-400/10 px-3 py-2 rounded-lg transition-colors text-xs font-semibold"
-                   title={t('clearTitle')}
-                 >
-                   <Trash2 size={14} /> {t('clear')}
-                 </button>
-                 
-                 <div className="hidden sm:block w-px h-4 bg-slate-700"></div>
-
-                 <label className={`flex items-center gap-2 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-indigo-500/20 font-semibold flex-1 sm:flex-none justify-center ${isParsingPDF ? 'opacity-70 pointer-events-none animate-pulse' : ''}`}>
-                    {isParsingPDF ? <Zap size={16} /> : <UploadCloud size={16} />}
-                    {isParsingPDF ? t('importing') : t('importPdf')}
-                    <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} disabled={isParsingPDF} />
-                 </label>
-              </div>
-            </div>
-            
-            {/* Link exemplo na barra cinza abaixo do header */}
-            <div className="px-6 pt-3 pb-0 text-right">
-                <button onClick={loadExample} className="text-slate-500 hover:text-indigo-400 transition-colors text-xs font-medium underline underline-offset-2">
-                  {t('fillExample')}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full sm:w-auto">
+                <button
+                  onClick={loadExample}
+                  className="flex items-center justify-center gap-2 bg-slate-900/50 hover:bg-slate-900 text-slate-200 px-4 py-2 rounded-xl transition-all font-semibold border border-slate-700/50 hover:border-indigo-500 text-xs"
+                >
+                  <Sparkles size={16} className="text-indigo-300" /> {t('fillExample')}
                 </button>
+
+                <button
+                  onClick={handleClearData}
+                  className="flex items-center justify-center gap-2 bg-slate-900/50 hover:bg-slate-900 text-rose-300 px-4 py-2 rounded-xl transition-all font-semibold border border-slate-700/50 hover:border-rose-500/70 text-xs"
+                  title={t('clearTitle')}
+                >
+                  <Trash2 size={16} /> {t('clear')}
+                </button>
+
+                <label className={`flex items-center justify-center gap-2 cursor-pointer bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-indigo-500/20 font-semibold ${isParsingPDF ? 'opacity-70 pointer-events-none animate-pulse' : ''}`}>
+                  {isParsingPDF ? <Zap size={16} /> : <UploadCloud size={16} />}
+                  {isParsingPDF ? t('importing') : t('importPdf')}
+                  <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} disabled={isParsingPDF} />
+                </label>
+              </div>
             </div>
 
             <div className="p-6 pt-4 space-y-6 flex-1 flex flex-col">
@@ -857,10 +1011,9 @@ export default function App() {
             {!analysis && !isAnalyzing ? (
                <div className="flex-1 h-full min-h-[600px] bg-slate-900/30 backdrop-blur-sm rounded-3xl border-2 border-dashed border-slate-700/50 flex flex-col items-center justify-center p-10 text-center text-slate-400">
                   <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 rounded-full"></div>
-                    <Bot size={64} className="text-slate-600 relative z-10" />
+                  <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 rounded-full animate-pulse"></div>
+                  <Bot size={64} className="text-slate-600 relative z-10 robot-float" />
                   </div>
-                  <h3 className="text-2xl font-bold mb-3 text-slate-300">A IA está pronta</h3>
                   <h3 className="text-2xl font-bold mb-3 text-slate-300">{t('readyTitle')}</h3>
                   <p className="max-w-md">{t('readyDesc')}</p>
                </div>
@@ -930,6 +1083,150 @@ export default function App() {
                   <FeedbackCard title={t('salesLetter')} icon={Activity} data={analysis.feedback.about} t={t} />
                   <FeedbackCard title={t('impactMetrics')} icon={Briefcase} data={analysis.feedback.experience} t={t} />
                   <FeedbackCard title={t('techStack')} icon={Star} data={analysis.feedback.skills} t={t} />
+
+                  {analysis.proReport && (
+                    <div className="mb-6 p-5 rounded-2xl border border-slate-700/50 bg-slate-900/30 backdrop-blur-sm">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h4 className="font-bold text-white flex items-center gap-2">
+                            <Award size={18} className="text-indigo-400" /> {t('proReportTitle')}
+                          </h4>
+                          <p className="text-sm text-slate-400 mt-1">
+                            {t('level')}: <span className="text-slate-200 font-semibold">{analysis.proReport?.level || '-'}</span>
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">{t('profileStrengthIndex')}</div>
+                          <div className="text-2xl font-extrabold text-white">
+                            {Number.isFinite(Number(analysis.proReport?.profileStrengthIndex?.total))
+                              ? Math.round(Number(analysis.proReport.profileStrengthIndex.total))
+                              : '-'}
+                            <span className="text-sm text-slate-400 font-semibold">/100</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {analysis.proReport?.profileStrengthIndex?.breakdown && (
+                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          {Object.entries(analysis.proReport.profileStrengthIndex.breakdown).map(([k, v]) => (
+                            <div key={k} className="flex items-center justify-between bg-slate-950/30 border border-slate-700/40 rounded-xl px-3 py-2">
+                              <span className="text-slate-300 truncate">{k}</span>
+                              <span className="text-slate-200 font-semibold">{Number.isFinite(Number(v)) ? Number(v) : '-'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {analysis.proReport?.headlineVersions && (
+                        <div className="mt-5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-2">{t('headlineVersions')}</div>
+                          <div className="grid grid-cols-1 gap-2">
+                            <div className="bg-slate-950/40 border border-slate-700/50 rounded-xl p-3">
+                              <div className="text-xs text-slate-400 font-semibold mb-1">Recruiters</div>
+                              <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed font-mono">{analysis.proReport.headlineVersions.recruiters || '-'}</div>
+                            </div>
+                            <div className="bg-slate-950/40 border border-slate-700/50 rounded-xl p-3">
+                              <div className="text-xs text-slate-400 font-semibold mb-1">ATS</div>
+                              <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed font-mono">{analysis.proReport.headlineVersions.ats || '-'}</div>
+                            </div>
+                            <div className="bg-slate-950/40 border border-slate-700/50 rounded-xl p-3">
+                              <div className="text-xs text-slate-400 font-semibold mb-1">Authority</div>
+                              <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed font-mono">{analysis.proReport.headlineVersions.authority || '-'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {analysis.proReport?.keywordMap && (
+                        <div className="mt-5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-2">{t('keywordMapTitle')}</div>
+                          <div className="text-sm text-slate-300">
+                            <div className="mb-2"><span className="text-slate-400">Priority:</span> {(analysis.proReport.keywordMap.priority || []).join(', ') || '-'}</div>
+                            <div className="mb-2"><span className="text-slate-400">Ideal frequency:</span> {analysis.proReport.keywordMap.idealFrequency || '-'}</div>
+                            <div><span className="text-slate-400">Where to insert:</span> {(analysis.proReport.keywordMap.whereToInsert || []).join(' · ') || '-'}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {analysis.proReport?.seoFindability && (
+                        <div className="mt-5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-2">{t('seoIndexTitle')}</div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl font-extrabold text-white">
+                              {Number.isFinite(Number(analysis.proReport.seoFindability.score))
+                                ? Math.round(Number(analysis.proReport.seoFindability.score))
+                                : '-'}
+                              <span className="text-sm text-slate-400 font-semibold">/100</span>
+                            </div>
+                            <div className="text-sm text-slate-400">{(analysis.proReport.seoFindability.tips || []).slice(0, 6).join(' • ')}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {analysis.proReport?.plan306090 && (
+                        <div className="mt-5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-2">{t('planTitle')}</div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-slate-950/30 border border-slate-700/40 rounded-xl p-3">
+                              <div className="text-xs text-slate-400 font-semibold mb-2">30</div>
+                              <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                                {(analysis.proReport.plan306090.d30 || []).slice(0, 6).join('\n') || '-'}
+                              </div>
+                            </div>
+                            <div className="bg-slate-950/30 border border-slate-700/40 rounded-xl p-3">
+                              <div className="text-xs text-slate-400 font-semibold mb-2">60</div>
+                              <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                                {(analysis.proReport.plan306090.d60 || []).slice(0, 6).join('\n') || '-'}
+                              </div>
+                            </div>
+                            <div className="bg-slate-950/30 border border-slate-700/40 rounded-xl p-3">
+                              <div className="text-xs text-slate-400 font-semibold mb-2">90</div>
+                              <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                                {(analysis.proReport.plan306090.d90 || []).slice(0, 6).join('\n') || '-'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {Array.isArray(analysis.proReport?.checklist) && analysis.proReport.checklist.length > 0 && (
+                        <div className="mt-5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-2">{t('checklistTitle')}</div>
+                          <div className="space-y-2">
+                            {analysis.proReport.checklist.slice(0, 10).map((it, idx) => {
+                              const status = (it?.status || '').toUpperCase();
+                              const color = status.includes('OK')
+                                ? 'text-emerald-300 border-emerald-500/20 bg-emerald-500/10'
+                                : status.includes('CR')
+                                  ? 'text-rose-300 border-rose-500/20 bg-rose-500/10'
+                                  : 'text-amber-300 border-amber-500/20 bg-amber-500/10';
+                              return (
+                                <div key={`${status}-${idx}`} className={`flex items-start gap-3 px-3 py-2 rounded-xl border ${color}`}>
+                                  <span className="text-xs font-extrabold tracking-wider">[{status || 'AJUSTAR'}]</span>
+                                  <span className="text-sm text-slate-200">{it?.text || '-'}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {analysis.proReport?.finalVerdict && (
+                        <div className="mt-5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-2">{t('finalVerdictTitle')}</div>
+                          <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                            {analysis.proReport.finalVerdict.verdict || '-'}
+                          </div>
+                          {Array.isArray(analysis.proReport.finalVerdict.priorities) && analysis.proReport.finalVerdict.priorities.length > 0 && (
+                            <div className="mt-2 text-sm text-slate-300">
+                              <span className="text-slate-400">Prioridades:</span> {analysis.proReport.finalVerdict.priorities.slice(0, 8).join(' • ')}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {placeholders.length > 0 && (
                     <div ref={placeholdersRef} className="mb-6 p-5 rounded-2xl border border-slate-700/50 bg-slate-900/30 backdrop-blur-sm">
